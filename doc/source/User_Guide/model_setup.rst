@@ -418,6 +418,7 @@ main_input file:
    &initial_conditions_namelist
    init_type=7
    temp_amp = 1.0d-4
+   thermal_random_seed = 12345
    conductive_profile=.true.
    /
    
@@ -1129,4 +1130,3 @@ Classification of the Convective Regimes in Rotating Stars.” The Astrophysical
    nu_top    = 4.d12
    kappa_top = 4.d12
    /
-

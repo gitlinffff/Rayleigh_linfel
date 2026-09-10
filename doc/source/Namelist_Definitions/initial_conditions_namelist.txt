@@ -17,6 +17,10 @@
 
 **temp_amp**
   Amplitude of randomized temperature/entropy perturbations to use with init_type = 7.
+**thermal_random_seed**
+  Nonnegative integer used to reproducibly seed randomized temperature/entropy
+  perturbations when init_type = 7.  The default value is -1, which retains the
+  compiler's default random-number initialization.
 **mag_amp**
   Amplitude of randomized magnetic perturbations to use with magnetic_init_type = 7.
 

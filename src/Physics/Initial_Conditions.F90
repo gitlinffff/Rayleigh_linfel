@@ -19,6 +19,7 @@
 !
 
 Module Initial_Conditions
+    Use Iso_Fortran_Env, Only : int64
     Use ProblemSize
     Use Fields
     Use Parallel_Framework
@@ -47,6 +48,7 @@ Module Initial_Conditions
     Integer :: magnetic_init_type = 1
     Integer :: init_tag = 8989
     Integer :: restart_iter = 0
+    Integer :: thermal_random_seed = -1
     Real*8 :: temp_amp = 1.0d0, temp_w = 0.3d0, mag_amp = 1.0d0
     Logical :: conductive_profile = .false.
     Logical :: rescale_velocity = .false.
@@ -71,6 +73,7 @@ Module Initial_Conditions
     Character*120 :: custom_thermal_file = '__nothing__'
 
     Namelist /Initial_Conditions_Namelist/ init_type, temp_amp, temp_w, restart_iter, &
+            & thermal_random_seed, &
             & magnetic_init_type,alt_check, mag_amp, conductive_profile, rescale_velocity, &
             & rescale_bfield, velocity_scale, bfield_scale, rescale_tvar, &
             & rescale_pressure, tvar_scale, pressure_scale, mdelta, &
@@ -368,11 +371,14 @@ Contains
     !///////////////////////////////////////////////////////////
     !       Random Perturbation Initializaton Routines
     Subroutine Generate_Random_Field(rand_amp, field_ind, infield,rprofile, &
-                & ell0_profile)
+                & ell0_profile, random_seed_value)
         Implicit None
-        Integer :: ncombinations, i, m, r, seed(1), mp, l, ind1, ind2
+        Integer :: ncombinations, i, m, r, mp, l, ind1, ind2, seed_size
         Integer :: mode_count, my_mode_start, my_mode_end, fcount(3,2)
         Integer, Intent(In) :: field_ind
+        Integer, Intent(In), Optional :: random_seed_value
+        Integer, Allocatable :: seed(:)
+        Integer(int64) :: seed_state
         Real*8, Intent(In) :: rand_amp
         Real*8, Intent(In), Optional :: rprofile(my_r%min:), ell0_profile(1:)
         Real*8, Allocatable :: rand(:,:), rfunc(:), lpow(:)
@@ -410,8 +416,24 @@ Contains
         Allocate(rand(1:ncombinations*2,1))
 
         If (my_rank .eq. 0) Then
-            Call system_clock(seed(1))
-            Call random_seed()
+            If (Present(random_seed_value)) Then
+                If (random_seed_value .ge. 0) Then
+                    Call random_seed(size=seed_size)
+                    Allocate(seed(seed_size))
+                    seed_state = Int(random_seed_value, int64)
+                    Do i = 1, seed_size
+                        seed_state = Mod(1103515245_int64*seed_state + 12345_int64, &
+                                         2147483647_int64)
+                        seed(i) = Int(seed_state)
+                    Enddo
+                    Call random_seed(put=seed)
+                    DeAllocate(seed)
+                Else
+                    Call random_seed()
+                Endif
+            Else
+                Call random_seed()
+            Endif
             Call random_number(rand)
 
             Do i = 1, ncombinations
@@ -566,7 +588,8 @@ Contains
                 profile0(:) = s_conductive(:)
 
             Endif
-            Call Generate_Random_Field(amp, 1, sbuffer,ell0_profile = profile0)
+            Call Generate_Random_Field(amp, 1, sbuffer, ell0_profile=profile0, &
+                                       random_seed_value=thermal_random_seed)
             DeAllocate(profile0)            
                     
         Else If (trim(custom_thermal_file) .ne. '__nothing__') then
@@ -576,7 +599,8 @@ Contains
             Call Load_Radial_Profile(custom_thermal_file,profile0)
 
             ! Randomize the entropy
-            Call Generate_Random_Field(amp, 1, sbuffer,ell0_profile = profile0)
+            Call Generate_Random_Field(amp, 1, sbuffer, ell0_profile=profile0, &
+                                       random_seed_value=thermal_random_seed)
             DeAllocate(profile0)
 
         Else
@@ -584,7 +608,8 @@ Contains
 
 
             ! Randomize the entropy
-            Call Generate_Random_Field(amp, 1, sbuffer)
+            Call Generate_Random_Field(amp, 1, sbuffer, &
+                                       random_seed_value=thermal_random_seed)
         Endif
 
         Call Set_RHS(teq,sbuffer%p1b(:,:,:,1))
@@ -1350,6 +1375,7 @@ Contains
         magnetic_init_type = 1
         init_tag = 8989
         restart_iter = 0
+        thermal_random_seed = -1
         temp_amp = 1.0d0
         temp_w   = 0.3d0
         mag_amp  = 1.0d0
