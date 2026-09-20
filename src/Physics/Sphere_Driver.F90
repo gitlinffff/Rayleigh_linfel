@@ -76,7 +76,7 @@ Contains
         Real*8  :: captured_time, max_time_seconds
         Logical :: terminate_file_exists
         Character*14 :: tmstr
-        Character*120 :: dtstr, wtmstr, istr
+        Character*120 :: dtstr, cfldtstr, wtmstr, istr
         Character(len=*), parameter ::   fmtstr = '(F14.4)'
         Character*256 :: checkpoint_input_file
 
@@ -173,13 +173,14 @@ Contains
             If (my_rank .eq. 0 .and. mod(iteration,statusline_interval) .eq. 0) Then
                 Write(istr,int_out_fmt)iteration
                 Write(dtstr,sci_note_fmt)deltat
+                Write(cfldtstr,sci_note_fmt)cfl_deltat_unclipped
                 If (stopwatch(walltime)%delta .ne. 0.0d0) Then
                    Write(wtmstr,sci_note_fmt) 1.0d0 / stopwatch(walltime)%delta
                 Else
                    Write(wtmstr,sci_note_fmt) 0.0d0
                 Endif
-                Call stdout%print(' Iteration:  '//Trim(istr)//'   DeltaT: '//Trim(dtstr)//'   Iter/sec: '&
-                   //Trim(wtmstr))
+                Call stdout%print(' Iteration:  '//Trim(istr)//'   DeltaT: '//Trim(dtstr)// &
+                   '   CFL_DeltaT: '//Trim(cfldtstr)//'   Iter/sec: '//Trim(wtmstr))
             Endif
             Call rlm_spacea()
 

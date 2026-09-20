@@ -652,13 +652,14 @@ Contains
         maxt2 = global_msgs(1)
         if (maxt2 .gt. 0.0d0) Then
             maxt = 1.0d0/sqrt(maxt2)
+            cfl_deltat_unclipped = cflmax*maxt
 
             if (deltat .lt. maxt*cflmin) then
                 ! we can increase our timestep
-                new_deltat = Min(cflmax*maxt,max_time_step)
+                new_deltat = Min(cfl_deltat_unclipped,max_time_step)
 
             elseif (deltat .gt. (maxt*cflmax)) then
-                new_deltat = cflmax*maxt
+                new_deltat = cfl_deltat_unclipped
                 if (new_deltat .gt. deltat*(1.0d0-min_dt_change)) then
                     ! As much as possible, we would like to avoid
                     ! changing the timestep (slow process).  When we do change it,
