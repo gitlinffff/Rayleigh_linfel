@@ -35,6 +35,7 @@ Module Sphere_Physical_Space
     Use PDE_Coefficients
     Use Math_Constants
     Use Benchmarking, Only : benchmark_checkup
+    Use Spherical_IO, Only : ComputeEll0, Compute_Radial_Average
     Implicit None
 
     Real*8, Allocatable :: tvar_eq(:,:,:)
@@ -47,6 +48,7 @@ Module Sphere_Physical_Space
     Integer, Parameter :: e_rr = 1, e_tt = 2, e_pp = 3
     Integer, Parameter :: e_rt = 4, e_rp = 5, e_tp = 6
     Logical :: debug = .false.
+    Real*8 :: status_kinetic_energy = 0.0d0
 
 Contains
     
@@ -199,6 +201,10 @@ Contains
 
         Call StopWatch(sdiv_time)%increment()
 
+        If (mod(iteration,statusline_interval) .eq. 0) Then
+            Call Compute_Status_Kinetic_Energy(wsp%p3a)
+        Endif
+
         !////////////////////////////////////////////////////////////////////////
         !This is a good spot to do some simple diagnostic output while we debug the code
         !since velocity components, Pressure, and Temperature are all
@@ -309,6 +315,34 @@ Contains
         Call wsp%reform()    ! Move to p2b
         Call StopWatch(rtranspose_time)%increment()
     End Subroutine Physical_Space
+
+    Subroutine Compute_Status_Kinetic_Energy(buffer)
+        Implicit None
+        Real*8, Intent(In) :: buffer(1:,my_r%min:,my_theta%min:,1:)
+        Real*8, Allocatable :: ke_density(:,:,:,:), shell_average(:,:), volume_average(:)
+        Integer :: r
+
+        Allocate(ke_density(1:n_phi,my_r%min:my_r%max,my_theta%min:my_theta%max,1))
+        Allocate(shell_average(my_r%min:my_r%max,1),volume_average(1))
+
+        ke_density(:,:,:,1) = Half*(buffer(1:n_phi,:,:,vr)**2 + buffer(1:n_phi,:,:,vtheta)**2 &
+            + buffer(1:n_phi,:,:,vphi)**2)
+        If (compressible) Then
+            Do r = my_r%min, my_r%max
+                ke_density(:,r,:,1) = ke_density(:,r,:,1)*exp(buffer(1:n_phi,r,:,rhovar))
+            Enddo
+        Else
+            Do r = my_r%min, my_r%max
+                ke_density(:,r,:,1) = ke_density(:,r,:,1)*ref%density(r)
+            Enddo
+        Endif
+
+        Call ComputeEll0(ke_density,shell_average)
+        Call Compute_Radial_Average(shell_average,volume_average)
+        status_kinetic_energy = volume_average(1)
+
+        DeAllocate(ke_density,shell_average,volume_average)
+    End Subroutine Compute_Status_Kinetic_Energy
 
     Subroutine Compute_Sound_Speed()
         Implicit None

@@ -21,7 +21,7 @@
 Module Sphere_Driver
     Use ClockInfo
     Use Sphere_Hybrid_Space,   Only : rlm_spacea, rlm_spaceb, hybrid_init
-    Use Sphere_Physical_Space, Only : physical_space, ohmic_heating_coeff, physical_space_init
+    Use Sphere_Physical_Space, Only : physical_space, ohmic_heating_coeff, physical_space_init, status_kinetic_energy
     Use Sphere_Spectral_Space, Only : post_solve_anelastic, advancetime, ctemp, post_solve_FD, post_solve_compressible
     Use Diagnostics_Interface, Only : Reboot_Diagnostics
     Use Spherical_IO, Only : time_to_output
@@ -170,21 +170,26 @@ Contains
                 Call Post_Solve_FD()
             Endif
 
-            If (my_rank .eq. 0 .and. mod(iteration,statusline_interval) .eq. 0) Then
-                Write(istr,int_out_fmt)iteration
-                Write(dtstr,sci_note_fmt)deltat
-                Write(cfldtstr,sci_note_fmt)cfl_deltat_unclipped
-                If (stopwatch(walltime)%delta .ne. 0.0d0) Then
-                   Write(wtmstr,sci_note_fmt) 1.0d0 / stopwatch(walltime)%delta
-                Else
-                   Write(wtmstr,sci_note_fmt) 0.0d0
-                Endif
-                Call stdout%print(' Iteration:  '//Trim(istr)//'   DeltaT: '//Trim(dtstr)// &
-                   '   CFL_DeltaT: '//Trim(cfldtstr)//'   Iter/sec: '//Trim(wtmstr))
-            Endif
             Call rlm_spacea()
 
             Call Physical_Space()
+
+            If (mod(iteration,statusline_interval) .eq. 0) Then
+                If (my_rank .eq. 0) Then
+                    Write(istr,int_out_fmt)iteration
+                    Write(dtstr,sci_note_fmt)deltat
+                    Write(cfldtstr,sci_note_fmt)cfl_deltat_unclipped
+                    If (stopwatch(walltime)%delta .ne. 0.0d0) Then
+                       Write(wtmstr,sci_note_fmt) 1.0d0 / stopwatch(walltime)%delta
+                    Else
+                       Write(wtmstr,sci_note_fmt) 0.0d0
+                    Endif
+                    Write(tmstr,sci_note_fmt)status_kinetic_energy
+                    Call stdout%print(' Iteration:  '//Trim(istr)//'   DeltaT: '//Trim(dtstr)// &
+                       '   Kinetic Energy: '//Trim(tmstr)//'   CFL_DeltaT: '//Trim(cfldtstr)// &
+                       '   Iter/sec: '//Trim(wtmstr))
+                Endif
+            Endif
 
             Call rlm_spaceb()
 
